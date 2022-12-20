@@ -3,7 +3,7 @@ use std::{collections::HashSet, fs};
 fn main() {
     let input = fs::read_to_string("./src/input.txt").expect("Unable to read file");
 
-    let mut seq = CharacterSequence::new(4);
+    let mut seq = CharacterSequence::new(14);
     let mut packet_marker: Option<usize> = None;
 
     for (i, character) in input.chars().enumerate() {
