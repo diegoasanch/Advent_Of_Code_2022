@@ -1,4 +1,4 @@
-use crate::directory::Directory;
+use crate::{directory::Directory, inode::INode};
 use anyhow::Result;
 use std::rc::Rc;
 
@@ -19,9 +19,15 @@ enum DirectoryChangeError {
 
 impl FileSystem {
     pub fn new() -> Self {
+        // Root directory of the file system
+        let root_dir = Directory::new("/", None);
+        let root = Rc::new(root_dir);
+
+        let current_directory = Rc::clone(&root);
+
         Self {
-            root: Rc::new(Directory::new("/", None)),
-            current_directory: (),
+            root,
+            current_directory,
         }
     }
 
@@ -39,5 +45,19 @@ impl FileSystem {
         };
 
         Ok(())
+    }
+}
+
+impl INode for FileSystem {
+    fn name(&self) -> &str {
+        self.root.name()
+    }
+
+    fn size(&self) -> u32 {
+        self.root.size()
+    }
+
+    fn is_directory(&self) -> bool {
+        true
     }
 }
