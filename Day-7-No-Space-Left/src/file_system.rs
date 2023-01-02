@@ -2,15 +2,17 @@ use crate::{directory::Directory, inode::INode};
 use anyhow::Result;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct FileSystem {
     root: Rc<Directory>,
     current_directory: Rc<Directory>,
 }
 
-enum DirectoryChange<'a> {
+#[derive(Debug)]
+pub enum DirectoryChange {
     Root,
     Parent,
-    Relative(&'a str),
+    Relative(String),
 }
 
 enum DirectoryChangeError {
@@ -31,21 +33,21 @@ impl FileSystem {
         }
     }
 
-    pub fn change_directory(&mut self, to: DirectoryChange) -> Result<()> {
-        match to {
-            DirectoryChange::Parent => {
-                match self.current_directory.parent() {
-                    Some(parent) => {
-                        self.current_directory = parent;
-                    }
-                    None => Err(DirectoryChangeError::NoParent),
-                }
-                self.current_directory = parent_dir;
-            }
-        };
+    // pub fn change_directory(&mut self, to: DirectoryChange) -> Result<()> {
+    //     match to {
+    //         DirectoryChange::Parent => {
+    //             match self.current_directory.parent() {
+    //                 Some(parent) => {
+    //                     self.current_directory = parent;
+    //                 }
+    //                 None => Err(DirectoryChangeError::NoParent),
+    //             }
+    //             self.current_directory = parent_dir;
+    //         }
+    //     };
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
 
 impl INode for FileSystem {
