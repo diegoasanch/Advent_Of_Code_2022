@@ -6,6 +6,9 @@ use std::{
     rc::{Rc, Weak},
 };
 
+pub type INodeRef = Rc<RefCell<dyn INode>>;
+pub type INodeWeak = Weak<RefCell<dyn INode>>;
+
 /// File system inode
 pub trait INode {
     /// Returns the `size` of the inode in **bytes**
@@ -28,6 +31,18 @@ pub trait INode {
 
     /// List of items in the inode
     fn items(&self) -> Option<Vec<INodeWeak>>;
+
+    /// Find a child inode by name
+    fn find_item(&self, name: &str) -> Option<INodeRef> {
+        for item in self.items()? {
+            if let Some(item) = item.upgrade() {
+                if item.borrow().name() == name {
+                    return Some(item);
+                }
+            }
+        }
+        None
+    }
 
     /// Pretty prints the inode
     /// Recursively prints the items of the inode
@@ -64,6 +79,3 @@ impl Debug for dyn INode {
         )
     }
 }
-
-pub type INodeRef = Rc<RefCell<dyn INode>>;
-pub type INodeWeak = Weak<RefCell<dyn INode>>;

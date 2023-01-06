@@ -12,7 +12,7 @@ use thiserror::Error;
 #[derive(Debug)]
 pub struct FileSystem {
     root: INodeRef,
-    location: INodeWeak,
+    location: INodeRef,
 }
 
 #[derive(Debug)]
@@ -27,12 +27,11 @@ pub enum FileSystemError {
     #[error("No parent directory")]
     NoParent,
 
-    #[error("Current directory unset")]
-    /// This error should never occur, but is here for completeness
-    CurrentDirectoryUnset,
-
     #[error("Directory not found: {0}")]
     DirectoryNotFound(String),
+
+    #[error("Dead reference")]
+    DeadReference,
 }
 
 impl FileSystem {
@@ -41,7 +40,7 @@ impl FileSystem {
         let root_dir = Directory::new("/", None);
         let root = Rc::new(RefCell::new(root_dir));
 
-        let location = Rc::downgrade(&root);
+        let location = Rc::clone(&root);
 
         Self { root, location }
     }
@@ -56,57 +55,32 @@ impl FileSystem {
 
     /// Sets the current directory to the parent of the current directory
     fn change_to_parent(&mut self) -> Result<()> {
-        let parent = self
+        let parent_weak = self
             .location
-            .upgrade()
-            .ok_or(FileSystemError::CurrentDirectoryUnset)?
             .try_borrow()?
             .parent()
             .ok_or(FileSystemError::NoParent)?;
 
-        self.location = Weak::clone(&parent);
+        let parent = Weak::upgrade(&parent_weak).ok_or(FileSystemError::DeadReference)?;
+
+        self.location = parent;
         Ok(())
     }
 
     /// Sets the current directory to the root directory
     fn change_to_root(&mut self) -> Result<()> {
-        self.location = Rc::downgrade(&self.root);
+        self.location = Rc::clone(&self.root);
         Ok(())
     }
 
     /// Sets the current directory to the directory at the given path
     /// relative to the current directory
     fn change_to_relative(&mut self, directory_path: &str) -> Result<()> {
-        let current_inode = self
-            .location
-            .upgrade()
-            .ok_or(FileSystemError::CurrentDirectoryUnset)?;
-
-        let inode_items =
-            current_inode
-                .try_borrow()?
-                .items()
-                .ok_or(FileSystemError::DirectoryNotFound(
-                    directory_path.to_string(),
-                ))?;
-
-        let new_location = inode_items
-            .iter()
-            .find(|node| {
-                match node.upgrade().or(None).map(|node| {
-                    node.try_borrow()
-                        .ok()
-                        .map(|node| node.name() == directory_path)
-                }) {
-                    Some(_item) => true,
-                    _ => false,
-                }
-            })
-            .ok_or(FileSystemError::DirectoryNotFound(
-                directory_path.to_string(),
-            ))?;
-
-        self.location = Weak::clone(&new_location);
+        let current_inode = &self.location;
+        let new_location = current_inode.borrow().find_item(directory_path).ok_or(
+            FileSystemError::DirectoryNotFound(directory_path.to_string()),
+        )?;
+        self.location = new_location;
         Ok(())
     }
 
@@ -114,13 +88,9 @@ impl FileSystem {
         let current_inode = &self.location;
 
         item.try_borrow_mut()?
-            .set_parent(Some(Weak::clone(current_inode)));
+            .set_parent(Some(Rc::downgrade(current_inode)));
 
-        current_inode
-            .upgrade()
-            .ok_or(FileSystemError::CurrentDirectoryUnset)?
-            .try_borrow_mut()?
-            .add_item(item)?;
+        current_inode.try_borrow_mut()?.add_item(item)?;
 
         Ok(())
     }
@@ -128,7 +98,6 @@ impl FileSystem {
 
 impl INode for FileSystem {
     fn name(&self) -> &str {
-        // &self.root.borrow().name().to_string()
         "file_system_root"
     }
 

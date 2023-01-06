@@ -15,7 +15,6 @@ fn main() {
 
     let file_system = parse_file_system(&input).expect("Failed to parse input");
 
-    println!("Result: {:#?}", file_system);
     println!("Tree");
     file_system.print_tree(0);
 }
