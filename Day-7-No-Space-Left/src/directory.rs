@@ -1,29 +1,21 @@
-use crate::inode::INode;
+use crate::inode::{INode, INodeRef, INodeWeak};
+use anyhow::Result;
+
 use std::rc::{Rc, Weak};
 
+#[derive(Debug)]
 pub struct Directory {
     name: String,
-    parent: Option<Weak<Directory>>,
-    items: Vec<Rc<dyn INode>>,
+    parent: Option<INodeWeak>,
+    items: Vec<INodeRef>,
 }
 
 impl Directory {
-    pub fn new(name: &str, parent: Option<Weak<Directory>>) -> Self {
+    pub fn new(name: &str, parent: Option<INodeWeak>) -> Self {
         Self {
             name: name.to_string(),
             parent,
             items: Vec::new(),
-        }
-    }
-
-    pub fn add_item(&mut self, item: Rc<dyn INode>) {
-        self.items.push(item);
-    }
-
-    pub fn parent(&self) -> Option<Weak<Directory>> {
-        match self.parent {
-            Some(parent) => Some(Weak::clone(&parent)),
-            None => None,
         }
     }
 }
@@ -34,10 +26,27 @@ impl INode for Directory {
     }
 
     fn size(&self) -> u32 {
-        self.items.iter().map(|item| item.size()).sum()
+        self.items.iter().map(|item| item.borrow().size()).sum()
     }
 
     fn is_directory(&self) -> bool {
         true
+    }
+
+    fn parent(&self) -> Option<INodeWeak> {
+        self.parent.as_ref().map(|parent| Weak::clone(parent))
+    }
+
+    fn set_parent(&mut self, parent: Option<INodeWeak>) {
+        self.parent = parent;
+    }
+
+    fn items(&self) -> Option<Vec<INodeWeak>> {
+        Some(self.items.iter().map(|item| Rc::downgrade(item)).collect())
+    }
+
+    fn add_item(&mut self, item: INodeRef) -> Result<()> {
+        self.items.push(item);
+        Ok(())
     }
 }

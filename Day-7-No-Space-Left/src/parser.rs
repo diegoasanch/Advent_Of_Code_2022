@@ -1,4 +1,10 @@
-use crate::file_system::{DirectoryChange, FileSystem};
+use std::{cell::RefCell, rc::Rc};
+
+use crate::{
+    directory::Directory,
+    file::File,
+    file_system::{DirectoryChange, FileSystem},
+};
 use anyhow::Result;
 use thiserror::Error;
 
@@ -121,13 +127,37 @@ impl DirectoryContent {
 }
 
 pub fn parse_file_system(input: &str) -> Result<FileSystem> {
-    let file_system = FileSystem::new();
+    let mut file_system = FileSystem::new();
 
     for line in input.lines() {
         let parsed_action = ParsedAction::parse(line)?;
-
-        println!("Parsed line \"{}\" into action: {:#?}", line, parsed_action);
+        perform_fs_action(&mut file_system, &parsed_action)?;
     }
 
     Ok(file_system)
+}
+
+fn perform_fs_action(file_system: &mut FileSystem, action: &ParsedAction) -> Result<()> {
+    match action {
+        ParsedAction::Command(command) => match command {
+            FileSystemCommand::ChangeDirectory(directory_change) => {
+                file_system.change_directory(&directory_change)?;
+            }
+            FileSystemCommand::ListDirectory => {
+                // file_system.list_directory
+                // DO: nothing
+            }
+        },
+        ParsedAction::DirectoryContent(directory_content) => match directory_content {
+            DirectoryContent::File(file_info) => {
+                let file = File::new(&file_info.name, file_info.size, None);
+                file_system.add_item(Rc::new(RefCell::new(file)))?;
+            }
+            DirectoryContent::Directory(directory_info) => {
+                let dir = Directory::new(&directory_info.name, None);
+                file_system.add_item(Rc::new(RefCell::new(dir)))?;
+            }
+        },
+    }
+    Ok(())
 }
