@@ -32,6 +32,23 @@ pub trait INode {
     /// List of items in the inode
     fn items(&self) -> Option<Vec<INodeWeak>>;
 
+    /// Returns all of the directories in the current inode and its children
+    /// recursively
+    fn all_items(&self) -> Vec<INodeRef> {
+        let mut result = Vec::new();
+
+        if let Some(items) = self.items() {
+            for item in items {
+                if let Some(item) = item.upgrade() {
+                    result.push(item.clone());
+                    result.append(&mut item.borrow().all_items());
+                }
+            }
+        }
+
+        result
+    }
+
     /// Find a child inode by name
     fn find_item(&self, name: &str) -> Option<INodeRef> {
         for item in self.items()? {
